@@ -115,13 +115,17 @@ JNIEXPORT void JNICALL Java_ErasureCode_destroy_1encode_1decode_1matrix
 }
 
 JNIEXPORT void JNICALL 
-Java_ErasureCode_cmain(JNIEnv *env, jobject obj)
+Java_ErasureCode_cmain(JNIEnv *env, jobject obj, jbyteArray indata)
 {
+       unsigned char* buffer = (*env)->GetByteArrayElements(env, indata, NULL);
+       jsize size = (*env)->GetArrayLength(env, indata);
+        
+
 	int i, j, m, c, e, ret;
 	int nerrs = 2;
 
 	m = k + p;
-	printf("ec_simple_example:\n");
+	printf("ec_simple_example data size: %d\n", size);
 
 	g_tbls = malloc(k * p * 32);
 

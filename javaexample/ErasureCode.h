@@ -34,10 +34,10 @@ JNIEXPORT void JNICALL Java_ErasureCode_destroy_1encode_1decode_1matrix
 /*
  * Class:     ErasureCode
  * Method:    cmain
- * Signature: ()V
+ * Signature: ([B)V
  */
 JNIEXPORT void JNICALL Java_ErasureCode_cmain
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jbyteArray);
 
 #ifdef __cplusplus
 }
