@@ -17,6 +17,14 @@ JNIEXPORT void JNICALL Java_ErasureCode_print
 
 /*
  * Class:     ErasureCode
+ * Method:    create_encode_decode_matrix
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_ErasureCode_create_1encode_1decode_1matrix
+  (JNIEnv *, jobject, jint, jint);
+
+/*
+ * Class:     ErasureCode
  * Method:    cmain
  * Signature: ()V
  */
