@@ -5,11 +5,12 @@
 #include "erasure_code.h"	// use <isa-l.h> instead when linking against installed
 #include <jni.h>
 #include <stdio.h>
+#include <math.h>
 #include "ErasureCode.h"
  
 
-#define MMAX 255
-#define KMAX 255
+#define MMAX 20
+#define KMAX 20
 
 typedef unsigned char u8;
 u8 *frag_ptrs[MMAX];
@@ -55,7 +56,7 @@ u8 *invert_matrix=NULL, *temp_matrix=NULL;
 u8 *g_tbls=NULL;
 int k = 10;
 int p = 4; 
-int len = 8 * 1024;	// Default params
+int len=0;
 
 JNIEXPORT void JNICALL Java_ErasureCode_create_1encode_1decode_1matrix
   (JNIEnv *env, jobject obj, jint _k, jint _p)
@@ -76,9 +77,13 @@ JNIEXPORT void JNICALL Java_ErasureCode_create_1encode_1decode_1matrix
 	}
 	gf_gen_cauchy1_matrix(encode_matrix, m, k);
 
-	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
+	//ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
+}
+
+void allocate_buffer() {
 	// Allocate the src & parity buffers
         int i;
+	int m = k + p;
 	for (i = 0; i < m; i++) {
 		if (NULL == (frag_ptrs[i] = malloc(len))) {
 			printf("alloc error: Fail\n");
@@ -86,16 +91,27 @@ JNIEXPORT void JNICALL Java_ErasureCode_create_1encode_1decode_1matrix
 		}
 	}
 
-	// Allocate buffers for recovered data
+
 	for (i = 0; i < p; i++) {
 		if (NULL == (recover_outp[i] = malloc(len))) {
 			printf("alloc error: Fail\n");
 			return ;
 		}
 	}
-
-
 }
+
+void deallocate_buffer() {
+	// de allocate the src & parity buffers
+        int i;
+	int m = k + p;
+	for (i = 0; i < m; i++) 
+	   free(frag_ptrs[i]);
+
+	// deallocate buffers for recovered data
+	for (i = 0; i < p; i++) 
+	   free(recover_outp[i]);
+}
+
 
 JNIEXPORT void JNICALL Java_ErasureCode_destroy_1encode_1decode_1matrix
   (JNIEnv *env, jobject obj)
@@ -114,6 +130,19 @@ JNIEXPORT void JNICALL Java_ErasureCode_destroy_1encode_1decode_1matrix
         g_tbls = NULL;
 }
 
+
+void fill_data_and_pad(unsigned char *buffer, int size) {
+    int d = 0;
+    for (int i = 0; i < k; i++)
+       for (int j = 0; j < len; j++) {
+           if(d < size)
+	       frag_ptrs[i][j] = buffer[d];
+            else
+	       frag_ptrs[i][j] = '0';
+            d++;
+        }
+}
+
 JNIEXPORT void JNICALL 
 Java_ErasureCode_cmain(JNIEnv *env, jobject obj, jbyteArray indata)
 {
@@ -122,28 +151,30 @@ Java_ErasureCode_cmain(JNIEnv *env, jobject obj, jbyteArray indata)
         
 
 	int i, j, m, c, e, ret;
-	int nerrs = 2;
+	int nerrs = p;
+
+	for (i = 0; i < nerrs; i++) {
+            frag_err_list[i] = rand() % (k + p);
+            printf("fail block %d\n", frag_err_list[i]);
+       }
 
 	m = k + p;
-	printf("ec_simple_example data size: %d\n", size);
-
-	g_tbls = malloc(k * p * 32);
-
 	// Fill sources with random data
-	for (i = 0; i < k; i++)
-		for (j = 0; j < len; j++)
-			frag_ptrs[i][j] = rand();
+        int size_aug = (int)ceil( (float)size/ (float)k)*k;
+        len=  (int) ceil( (float)size/ (float)k);
+	printf("ec_simple_example data size: %d k=%d %d %d tot dat=%d\n", size, k, size/k, (int)ceil( (float)size/ (float)k), size_aug);
+
+        allocate_buffer();
+
+
+
+
+        fill_data_and_pad(buffer, (int) size) ;
 
 	printf(" encode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
 
-	// Pick an encode matrix. A Cauchy matrix is a good choice as even
-	// large k are always invertable keeping the recovery rule simple.
-	//gf_gen_cauchy1_matrix(encode_matrix, m, k);
-
-	// Initialize g_tbls from encode matrix
-	//ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
-
 	// Generate EC parity blocks from sources
+	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
 	ec_encode_data(len, k, p, g_tbls, frag_ptrs, &frag_ptrs[k]);
 
 	if (nerrs <= 0)
@@ -177,8 +208,132 @@ Java_ErasureCode_cmain(JNIEnv *env, jobject obj, jbyteArray indata)
 		}
 	}
 
+        deallocate_buffer();
+        (*env)->ReleaseByteArrayElements(env, indata, buffer, JNI_ABORT); 
 	printf(" } done all: Pass\n");
 }
+
+
+JNIEXPORT jobjectArray JNICALL Java_ErasureCode_encode_1data
+(JNIEnv *env, jobject obj, jbyteArray indata)
+{
+       unsigned char* buffer = (*env)->GetByteArrayElements(env, indata, NULL);
+       jsize size = (*env)->GetArrayLength(env, indata);
+        
+
+	int i, j, m, c, e, ret;
+	int nerrs = p;
+
+	for (i = 0; i < nerrs; i++) {
+            frag_err_list[i] = rand() % (k + p);
+            printf("fail block %d\n", frag_err_list[i]);
+       }
+
+	m = k + p;
+	// Fill sources with random data
+        int size_aug = (int)ceil( (float)size/ (float)k)*k;
+        len=  (int) ceil( (float)size/ (float)k);
+	printf("ec_simple_example data size: %d k=%d %d %d tot dat=%d\n", size, k, size/k, (int)ceil( (float)size/ (float)k), size_aug);
+
+        allocate_buffer();
+
+        fill_data_and_pad(buffer, (int) size) ;
+
+	printf(" encode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
+
+	// Generate EC parity blocks from sources
+	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
+	ec_encode_data(len, k, p, g_tbls, frag_ptrs, &frag_ptrs[k]);
+
+        jbyteArray data_part = (*env)->NewByteArray(env, size_aug);
+        // to have an easy way to get its class when building the outer array
+        jobjectArray data_parts= (*env)->NewObjectArray(env, m, (*env)->GetObjectClass(env, data_part), NULL);
+
+        jclass arrayElemType = (*env)->FindClass(env, "[B");
+        for( i =0; i < m; i++) {
+            jbyteArray data_part = (*env)->NewByteArray(env, size_aug);
+            jbyte *a = (jbyte*) (*env)->GetPrimitiveArrayCritical(env, data_part, NULL);
+            for (j = 0; j < len; ++j) a[j] =frag_ptrs[i][j]; 
+            (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
+
+           (*env)->SetObjectArrayElement(env, data_parts, i, data_part);
+        }
+
+        return data_parts;
+}
+
+JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
+(JNIEnv *env, jobject obj, jbyteArray enc_data, jintArray erased_indices)
+{
+
+      int i, j, m, c, e, ret;
+      int __m = (*env)->GetArrayLength(env, enc_data);
+      jbyteArray dim=  (jbyteArray)(*env)->GetObjectArrayElement(env, enc_data, 0);
+      int size_aug = (*env)->GetArrayLength(env, dim);
+
+      allocate_buffer();
+      for(i=0; i<__m; ++i){
+          jbyteArray oneDim= (jbyteArray)(*env)->GetObjectArrayElement(env, enc_data, i);
+          jbyte *element= (*env)->GetByteArrayElements(env, oneDim, 0);
+          for(j=0; j< size_aug; ++j) {
+             frag_ptrs[i][j]=element[j];
+          }
+      }
+
+
+      int *__erased_indices =  (*env)->GetIntArrayElements(env, erased_indices, NULL);
+
+      int nerrs = p;
+
+	for (i = 0; i < nerrs; i++) {
+            frag_err_list[i] = __erased_indices[i];
+            printf("\t\tdecode fail block %d\n", frag_err_list[i]);
+       }
+
+	m = k + p;
+
+	// Generate EC parity blocks from sources
+	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
+
+	// Find a decode matrix to regenerate all erasures from remaining frags
+	ret = gf_gen_decode_matrix_simple(encode_matrix, decode_matrix,
+					  invert_matrix, temp_matrix, decode_index,
+					  frag_err_list, nerrs, k, m);
+
+
+        printf("hello\n");
+	// Recover data
+	ec_init_tables(k, nerrs, decode_matrix, g_tbls);
+        printf("hello 1  %d, %d %d\n", len, k, nerrs);
+	ec_encode_data(len, k, nerrs, g_tbls, recover_srcs, recover_outp);
+
+        printf("hello 2\n");
+	// Pack recovery array pointers as list of valid fragments
+	for (i = 0; i < k; i++)
+		recover_srcs[i] = frag_ptrs[decode_index[i]];
+
+
+	printf(" decode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
+
+        jbyteArray data_part = (*env)->NewByteArray(env, size_aug);
+        // to have an easy way to get its class when building the outer array
+        jobjectArray data_parts= (*env)->NewObjectArray(env, k, (*env)->GetObjectClass(env, data_part), NULL);
+
+        jclass arrayElemType = (*env)->FindClass(env, "[B");
+        for( i =0; i < k; i++) {
+            jbyteArray data_part = (*env)->NewByteArray(env, size_aug);
+            jbyte *a = (jbyte*) (*env)->GetPrimitiveArrayCritical(env, data_part, NULL);
+            for (j = 0; j < len; ++j) a[j] =recover_srcs[i][j]; 
+            (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
+
+           (*env)->SetObjectArrayElement(env, data_parts, i, data_part);
+        }
+        deallocate_buffer();
+
+        return data_parts;
+}
+
+
 
 /*
  * Generate decode matrix from encode matrix and erasure list
@@ -189,7 +344,7 @@ static int gf_gen_decode_matrix_simple(u8 * encode_matrix,
 				       u8 * decode_matrix,
 				       u8 * invert_matrix,
 				       u8 * temp_matrix,
-				       u8 * decode_index, u8 * frag_err_list, int nerrs, int k,
+				       u8 * decode_index, u8 *frag_err_list, int nerrs, int k,
 				       int m)
 {
 	int i, j, p, r;
