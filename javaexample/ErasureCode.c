@@ -12,6 +12,13 @@
 #define KMAX 255
 
 typedef unsigned char u8;
+u8 *frag_ptrs[MMAX];
+u8 *recover_srcs[KMAX];
+u8 *recover_outp[KMAX];
+u8 frag_err_list[MMAX];
+u8 decode_index[MMAX];
+
+
 
 int usage(void)
 {
@@ -46,10 +53,14 @@ static int gf_gen_decode_matrix_simple(u8 * encode_matrix,
 u8 *encode_matrix =NULL, *decode_matrix=NULL;
 u8 *invert_matrix=NULL, *temp_matrix=NULL;
 u8 *g_tbls=NULL;
+int k = 10;
+int p = 4; 
+int len = 8 * 1024;	// Default params
 
 JNIEXPORT void JNICALL Java_ErasureCode_create_1encode_1decode_1matrix
-  (JNIEnv *env, jobject obj, jint k, jint p)
+  (JNIEnv *env, jobject obj, jint _k, jint _p)
 {
+        k = _k; p = _p;
         int m = k + p;
 	// Allocate coding matrices
 	encode_matrix = malloc(m * k);
@@ -63,32 +74,11 @@ JNIEXPORT void JNICALL Java_ErasureCode_create_1encode_1decode_1matrix
 		printf("Test failure! Error with malloc\n");
 		return ;
 	}
+	gf_gen_cauchy1_matrix(encode_matrix, m, k);
 
-}
-
-JNIEXPORT void JNICALL 
-Java_ErasureCode_cmain(JNIEnv *env, jobject obj)
-{
-	int i, j, m, c, e, ret;
-	int k = 10, p = 4, len = 8 * 1024;	// Default params
-	int nerrs = 2;
-
-	// Fragment buffer pointers
-	u8 *frag_ptrs[MMAX];
-	u8 *recover_srcs[KMAX];
-	u8 *recover_outp[KMAX];
-	u8 frag_err_list[MMAX];
-
-	u8 decode_index[MMAX];
-
-	m = k + p;
-
-	printf("ec_simple_example:\n");
-
-	g_tbls = malloc(k * p * 32);
-
-
+	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
 	// Allocate the src & parity buffers
+        int i;
 	for (i = 0; i < m; i++) {
 		if (NULL == (frag_ptrs[i] = malloc(len))) {
 			printf("alloc error: Fail\n");
@@ -104,6 +94,37 @@ Java_ErasureCode_cmain(JNIEnv *env, jobject obj)
 		}
 	}
 
+
+}
+
+JNIEXPORT void JNICALL Java_ErasureCode_destroy_1encode_1decode_1matrix
+  (JNIEnv *env, jobject obj)
+{
+	// Allocate coding matrices
+	if( encode_matrix == NULL) free(encode_matrix);
+	if(decode_matrix == NULL) free(decode_matrix);
+	if(invert_matrix == NULL) free(invert_matrix);
+	if(temp_matrix == NULL) free(temp_matrix);
+	if(g_tbls == NULL) free(g_tbls);
+
+	encode_matrix = NULL;
+        decode_matrix = NULL;
+	invert_matrix = NULL;
+        temp_matrix = NULL;
+        g_tbls = NULL;
+}
+
+JNIEXPORT void JNICALL 
+Java_ErasureCode_cmain(JNIEnv *env, jobject obj)
+{
+	int i, j, m, c, e, ret;
+	int nerrs = 2;
+
+	m = k + p;
+	printf("ec_simple_example:\n");
+
+	g_tbls = malloc(k * p * 32);
+
 	// Fill sources with random data
 	for (i = 0; i < k; i++)
 		for (j = 0; j < len; j++)
@@ -113,10 +134,10 @@ Java_ErasureCode_cmain(JNIEnv *env, jobject obj)
 
 	// Pick an encode matrix. A Cauchy matrix is a good choice as even
 	// large k are always invertable keeping the recovery rule simple.
-	gf_gen_cauchy1_matrix(encode_matrix, m, k);
+	//gf_gen_cauchy1_matrix(encode_matrix, m, k);
 
 	// Initialize g_tbls from encode matrix
-	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
+	//ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
 
 	// Generate EC parity blocks from sources
 	ec_encode_data(len, k, p, g_tbls, frag_ptrs, &frag_ptrs[k]);
