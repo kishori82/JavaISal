@@ -28,4 +28,4 @@ prof:
 #--verbose 
 #--log-file=valgrind-out.txt
 clean:
-	rm -rf ErasureCode.class ErasureCode.h liberasure.so
+	rm -rf ErasureCode.class ErasureCode.h liberasure.so ErasureCode.o

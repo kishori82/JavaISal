@@ -14,6 +14,7 @@
 
 typedef unsigned char u8;
 u8 *frag_ptrs[MMAX];
+u8 *return_data_ptrs[MMAX];
 u8 *recover_srcs[KMAX];
 u8 *recover_outp[KMAX];
 u8 frag_err_list[MMAX];
@@ -319,9 +320,13 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
 
 	ec_encode_data(len, k, nerrs, g_tbls, recover_srcs, recover_outp);
 
+    
+        for (i = 0; i < k; i++) {
+	   return_data_ptrs[i] = frag_ptrs[i];
+        }
+
         for (i = 0; i < nerrs; i++) {
-	    frag_ptrs[frag_err_list[i]] = recover_outp[i];
-         //   printf("Recover index %d -> %d\n", i, frag_err_list[i]);
+	    return_data_ptrs[frag_err_list[i]] = recover_outp[i];
         }
 
 	// Pack recovery array pointers as list of valid fragments
@@ -330,19 +335,20 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
         jbyteArray data_part = (*env)->NewByteArray(env, len);
         // to have an easy way to get its class when building the outer array
         jobjectArray data_parts= (*env)->NewObjectArray(env, k, (*env)->GetObjectClass(env, data_part), NULL);
+        (*env)->DeleteLocalRef(env, data_part);
 
         for( i =0; i < k; i++) {
             jbyteArray data_part = (*env)->NewByteArray(env, len);
 
             jbyte *a = (jbyte*) (*env)->GetPrimitiveArrayCritical(env, data_part, NULL);
-            for (j = 0; j < len; ++j) a[j] =frag_ptrs[i][j]; 
+            for (j = 0; j < len; ++j) a[j]=return_data_ptrs[i][j]; 
 
-         //   (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
+           (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
             (*env)->SetObjectArrayElement(env, data_parts, i, data_part);
+            (*env)->DeleteLocalRef(env, data_part);
         }
 
-        printf("Going to free now\n");
-       // deallocate_buffer();
+        deallocate_buffer();
 
         return data_parts;
 }

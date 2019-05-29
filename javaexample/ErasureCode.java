@@ -10,7 +10,7 @@ class ErasureCode {
      public static void main(String[] args) {
 
          /* this is the code parameters [m, k], m= k + p */
-         int numTests = 1000000;
+         int numTests = 10000;
          int k = 10, p =4;
          int datasize = 100011;
 	 System.out.printf("Encode scheme (m,k,p)=(%d,%d,%d) datasize=%d\n", k+p, k, p, datasize);
@@ -46,14 +46,7 @@ class ErasureCode {
            else
                System.out.printf("\tc. First %d encoded parts does NOT match data\n",k,  i);
  
-           /* STEP 3 store the encoded data for comparison in STEP 6 */
-           byte[][] orig_encoded_data = new byte[k][encoded_data[0].length];
-           for (int j = 0; j < k; j++) 
-                for(int m=0; m < encoded_data[j].length; m++) 
-                   orig_encoded_data[j][m] = encoded_data[j][m];
-
-
-           /* STEP 4 add the erasures */
+           /* STEP 3 add the erasures */
            int[] erased_indices = new int[p];
            for (int j = 0; j < p; j++) {
                 erased_indices[j] =  rand.nextInt(k + p);
@@ -66,21 +59,21 @@ class ErasureCode {
               System.out.printf(" %d", erased_indices[j]);
            System.out.printf("\n");
 
-           /* STEP 5  now decode the data */
+           /* STEP 4  now decode the data */
            byte[][] decoded_data = new ErasureCode().decode_data(encoded_data, erased_indices);
 
-           /* STEP 6 check the correctness of the data */
+           /* STEP 5 check the correctness of the data */
+           l = 0;
            System.out.printf("\te. Number of decoded elements %d\n", decoded_data.length);
            boolean blnResult = true;
            for(int j =0; j < k; j++) {
-                if( Arrays.equals(orig_encoded_data[j], decoded_data[j]) ==false) { 
-                    blnResult=false;
-                    System.out.printf("Test failed at test no. %d\n", i);  
-                  //  System.exit(0); 
+                for(int m=0; m < encoded_data[j].length && l < datasize; m++) {
+                   if(decoded_data[j][m]!=nbyte[l]) blnResult=false;
+                   l++;
                 }
 //                System.out.printf("Are byte (%d) arrays equal ? : %b\n",  j,blnResult);
            }
-           System.out.printf("\t\t Correctly decoded data\n");
+           if(blnResult==true) System.out.printf("\t\t Correctly decoded data\n");
          }
 
          new ErasureCode().destroy_encode_decode_matrix();
