@@ -42,14 +42,6 @@ static int gf_gen_decode_matrix_simple(u8 * encode_matrix,
 				       u8 * frag_err_list, int nerrs, int k, int m);
 
  
- JNIEXPORT void JNICALL 
- Java_ErasureCode_print(JNIEnv *env, jobject obj)
- {
-     static int i = 0;
-     printf("Hello World! %d\n", i);
-     i++;
-     return;
- }
 
 u8 *encode_matrix =NULL, *decode_matrix=NULL;
 u8 *invert_matrix=NULL, *temp_matrix=NULL;
@@ -245,13 +237,12 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_encode_1data
 	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
 	ec_encode_data(len, k, p, g_tbls, frag_ptrs, &frag_ptrs[k]);
 
-        jbyteArray data_part = (*env)->NewByteArray(env, size_aug);
+        jbyteArray data_part = (*env)->NewByteArray(env, len);
         // to have an easy way to get its class when building the outer array
         jobjectArray data_parts= (*env)->NewObjectArray(env, m, (*env)->GetObjectClass(env, data_part), NULL);
 
-        jclass arrayElemType = (*env)->FindClass(env, "[B");
         for( i =0; i < m; i++) {
-            jbyteArray data_part = (*env)->NewByteArray(env, size_aug);
+            jbyteArray data_part = (*env)->NewByteArray(env, len);
             jbyte *a = (jbyte*) (*env)->GetPrimitiveArrayCritical(env, data_part, NULL);
             for (j = 0; j < len; ++j) a[j] =frag_ptrs[i][j]; 
             (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
@@ -259,40 +250,39 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_encode_1data
            (*env)->SetObjectArrayElement(env, data_parts, i, data_part);
         }
 
+        deallocate_buffer();
         return data_parts;
 }
 
 JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
 (JNIEnv *env, jobject obj, jbyteArray enc_data, jintArray erased_indices)
 {
-
       int i, j, m, c, e, ret;
       int __m = (*env)->GetArrayLength(env, enc_data);
       jbyteArray dim=  (jbyteArray)(*env)->GetObjectArrayElement(env, enc_data, 0);
-      int size_aug = (*env)->GetArrayLength(env, dim);
+      int len = (*env)->GetArrayLength(env, dim);
 
       allocate_buffer();
       for(i=0; i<__m; ++i){
           jbyteArray oneDim= (jbyteArray)(*env)->GetObjectArrayElement(env, enc_data, i);
           jbyte *element= (*env)->GetByteArrayElements(env, oneDim, 0);
-          for(j=0; j< size_aug; ++j) {
+          for(j=0; j< len; ++j) {
              frag_ptrs[i][j]=element[j];
           }
       }
 
 
       int *__erased_indices =  (*env)->GetIntArrayElements(env, erased_indices, NULL);
-
       int nerrs = p;
 
 	for (i = 0; i < nerrs; i++) {
-            frag_err_list[i] = __erased_indices[i];
+            frag_err_list[i] = (unsigned char) __erased_indices[i];
             printf("\t\tdecode fail block %d\n", frag_err_list[i]);
-       }
+        }
 
 	m = k + p;
 
-	// Generate EC parity blocks from sources
+	// Initialize g_tbls from encode matrix
 	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
 
 	// Find a decode matrix to regenerate all erasures from remaining frags
@@ -300,35 +290,42 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
 					  invert_matrix, temp_matrix, decode_index,
 					  frag_err_list, nerrs, k, m);
 
+	// Pack recovery array pointers as list of valid fragments
+	for (i = 0; i < k; i++) {
+	    recover_srcs[i] = frag_ptrs[decode_index[i]];
+            printf("Decode index %d -> %d\n", i, decode_index[i]);
+        }
 
-        printf("hello\n");
 	// Recover data
 	ec_init_tables(k, nerrs, decode_matrix, g_tbls);
-        printf("hello 1  %d, %d %d\n", len, k, nerrs);
+        printf("hello 1  len=%d, k=%d nerrs=%d\n", len, k, nerrs);
+
 	ec_encode_data(len, k, nerrs, g_tbls, recover_srcs, recover_outp);
 
-        printf("hello 2\n");
+        for (i = 0; i < nerrs; i++) {
+	    frag_ptrs[frag_err_list[i]] = recover_outp[i];
+            printf("Recover index %d -> %d\n", i, frag_err_list[i]);
+        }
+
+
+
+
 	// Pack recovery array pointers as list of valid fragments
-	for (i = 0; i < k; i++)
-		recover_srcs[i] = frag_ptrs[decode_index[i]];
-
-
 	printf(" decode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
 
-        jbyteArray data_part = (*env)->NewByteArray(env, size_aug);
+        jbyteArray data_part = (*env)->NewByteArray(env, len);
         // to have an easy way to get its class when building the outer array
         jobjectArray data_parts= (*env)->NewObjectArray(env, k, (*env)->GetObjectClass(env, data_part), NULL);
 
-        jclass arrayElemType = (*env)->FindClass(env, "[B");
         for( i =0; i < k; i++) {
-            jbyteArray data_part = (*env)->NewByteArray(env, size_aug);
+            jbyteArray data_part = (*env)->NewByteArray(env, len);
             jbyte *a = (jbyte*) (*env)->GetPrimitiveArrayCritical(env, data_part, NULL);
-            for (j = 0; j < len; ++j) a[j] =recover_srcs[i][j]; 
+            for (j = 0; j < len; ++j) a[j] =frag_ptrs[i][j]; 
             (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
 
            (*env)->SetObjectArrayElement(env, data_parts, i, data_part);
         }
-        deallocate_buffer();
+        //deallocate_buffer();
 
         return data_parts;
 }
