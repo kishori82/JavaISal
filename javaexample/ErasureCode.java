@@ -14,17 +14,19 @@ class ErasureCode {
          int k = 10, p =4;
          int datasize = 100011;
 	 System.out.printf("Encode scheme (m,k,p)=(%d,%d,%d) datasize=%d\n", k+p, k, p, datasize);
-         /* set the parameters for once*/
+         /* set the parameters for once to the library*/
          new ErasureCode().create_encode_decode_matrix(k, p);
          /* random class to generate random data */
          Random rand = new Random();
          /* number of tests, generating data, encoding, then erasing and then decoding */ 
          for(int i =0; i < numTests; i++) {
            System.out.printf("TEST :%d\n", i); 
+
            /* STEP 1 create the random data for the test */
            byte[] nbyte = new byte[datasize];
            rand.nextBytes(nbyte);
            System.out.printf("\ta. Generated the random data for test %d\n", i); 
+
            /* STEP 2 Encode the data */
            System.out.printf("\tb. Encoding data for test. %d\n", i); 
            byte[][] encoded_data = new ErasureCode().encode_data(nbyte);
@@ -74,7 +76,7 @@ class ErasureCode {
                 if( Arrays.equals(orig_encoded_data[j], decoded_data[j]) ==false) { 
                     blnResult=false;
                     System.out.printf("Test failed at test no. %d\n", i);  
-                    System.exit(0); 
+                  //  System.exit(0); 
                 }
 //                System.out.printf("Are byte (%d) arrays equal ? : %b\n",  j,blnResult);
            }

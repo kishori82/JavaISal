@@ -260,18 +260,28 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
 (JNIEnv *env, jobject obj, jbyteArray enc_data, jintArray erased_indices)
 {
       int i, j, m, c, e, ret;
+
       int __m = (*env)->GetArrayLength(env, enc_data);
       jbyteArray dim=  (jbyteArray)(*env)->GetObjectArrayElement(env, enc_data, 0);
       int len = (*env)->GetArrayLength(env, dim);
 
+
       allocate_buffer();
+
       for(i=0; i<__m; ++i){
           jbyteArray oneDim= (jbyteArray)(*env)->GetObjectArrayElement(env, enc_data, i);
-          jbyte *element= (*env)->GetByteArrayElements(env, oneDim, 0);
+          jbyte *elements= (*env)->GetByteArrayElements(env, oneDim, 0);
           for(j=0; j< len; ++j) {
-             frag_ptrs[i][j]=element[j];
+             frag_ptrs[i][j]=elements[j];
           }
+//          (*env)->ReleaseByteArrayElements(env, oneDim, element, JNI_ABORT);
+         (*env)->ReleaseByteArrayElements(env, oneDim, elements, 0);
+         (*env)->DeleteLocalRef(env, oneDim);
       }
+
+
+      jbyte *__enc_data =  (*env)->GetByteArrayElements(env, enc_data, NULL);
+      (*env)->ReleaseByteArrayElements(env, enc_data, __enc_data, JNI_ABORT);
 
 
       jint *__erased_indices =  (*env)->GetIntArrayElements(env, erased_indices, NULL);
@@ -282,6 +292,10 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
          //   printf("\t\tdecode fail block %d\n", frag_err_list[i]);
         }
         (*env)->ReleaseIntArrayElements(env, erased_indices, __erased_indices, JNI_ABORT);
+
+        
+       // jbyteArray data_part1 = (*env)->NewByteArray(env, len);
+//        if(1) return data_part1;
 
 	m = k + p;
 
@@ -319,13 +333,16 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
 
         for( i =0; i < k; i++) {
             jbyteArray data_part = (*env)->NewByteArray(env, len);
+
             jbyte *a = (jbyte*) (*env)->GetPrimitiveArrayCritical(env, data_part, NULL);
             for (j = 0; j < len; ++j) a[j] =frag_ptrs[i][j]; 
-            (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
 
-           (*env)->SetObjectArrayElement(env, data_parts, i, data_part);
+         //   (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
+            (*env)->SetObjectArrayElement(env, data_parts, i, data_part);
         }
-        //deallocate_buffer();
+
+        printf("Going to free now\n");
+       // deallocate_buffer();
 
         return data_parts;
 }
