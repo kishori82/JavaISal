@@ -12,7 +12,7 @@ class ErasureCode {
          /* this is the code parameters [m, k], m= k + p */
          int numTests = 10000;
          int k = 10, p =4;
-         int datasize = 100011;
+         int datasize = 1000011;
 	 System.out.printf("Encode scheme (m,k,p)=(%d,%d,%d) datasize=%d\n", k+p, k, p, datasize);
          /* set the parameters for once to the library*/
          new ErasureCode().create_encode_decode_matrix(k, p);
@@ -42,9 +42,9 @@ class ErasureCode {
                }
            }
            if(match==false) 
-               System.out.printf("\tc. First %d encoded parts DOES match data\n",k,  i);
-           else
                System.out.printf("\tc. First %d encoded parts does NOT match data\n",k,  i);
+           else
+               System.out.printf("\tc. First %d encoded parts DOES match data\n",k,  i);
  
            /* STEP 3 add the erasures */
            int[] erased_indices = new int[p];
