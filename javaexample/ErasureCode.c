@@ -209,7 +209,10 @@ Java_ErasureCode_cmain(JNIEnv *env, jobject obj, jbyteArray indata)
 JNIEXPORT jobjectArray JNICALL Java_ErasureCode_encode_1data
 (JNIEnv *env, jobject obj, jbyteArray indata)
 {
-       unsigned char* buffer = (*env)->GetByteArrayElements(env, indata, NULL);
+        jobjectArray data_part1;
+
+       jbyte* buffer = (*env)->GetByteArrayElements(env, indata, NULL);
+       //unsigned char* buffer = (*env)->GetByteArrayElements(env, indata, NULL);
        jsize size = (*env)->GetArrayLength(env, indata);
         
 
@@ -222,10 +225,12 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_encode_1data
         len=  (int) ceil( (float)size/ (float)k);
 	//printf("ec_simple_example data size: %d k=%d %d %d tot dat=%d\n", size, k, size/k, (int)ceil( (float)size/ (float)k), size_aug);
 
+        //(*env)->ReleaseByteArrayElements(env, indata, buffer, JNI_ABORT);
+
         allocate_buffer();
 
         fill_data_and_pad(buffer, (int) size) ;
-        (*env)->ReleaseByteArrayElements(env, obj, buffer, JNI_ABORT);
+        (*env)->ReleaseByteArrayElements(env, indata, buffer, JNI_ABORT);
 
 	//printf(" encode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
 
@@ -269,13 +274,14 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
       }
 
 
-      int *__erased_indices =  (*env)->GetIntArrayElements(env, erased_indices, NULL);
+      jint *__erased_indices =  (*env)->GetIntArrayElements(env, erased_indices, NULL);
       int nerrs = p;
 
 	for (i = 0; i < nerrs; i++) {
             frag_err_list[i] = (unsigned char) __erased_indices[i];
          //   printf("\t\tdecode fail block %d\n", frag_err_list[i]);
         }
+        (*env)->ReleaseIntArrayElements(env, erased_indices, __erased_indices, JNI_ABORT);
 
 	m = k + p;
 

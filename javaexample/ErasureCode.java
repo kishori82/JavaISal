@@ -10,7 +10,7 @@ class ErasureCode {
      public static void main(String[] args) {
 
          /* this is the code parameters [m, k], m= k + p */
-         int numTests = 10;
+         int numTests = 1000000;
          int k = 10, p =4;
          int datasize = 100011;
 	 System.out.printf("Encode scheme (m,k,p)=(%d,%d,%d) datasize=%d\n", k+p, k, p, datasize);
@@ -30,7 +30,6 @@ class ErasureCode {
            byte[][] encoded_data = new ErasureCode().encode_data(nbyte);
            System.out.printf("\t\t# coded elements=%d and len of element=%d\n", encoded_data.length, encoded_data[0].length);
 
-           if(true) continue;
            /* print the stats of the encoded data */
            int l=0;
            boolean match = true;
