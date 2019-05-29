@@ -3,6 +3,7 @@
 #IFLAGS=-I/usr/lib/jvm/java-8-openjdk-amd64/include/ -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux -I../include 
 IFLAGS=-I/usr/lib/jvm/java-8-openjdk-amd64/include  -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux/ -I ../include
 LFLAGS=-L../bin
+CFLAGS=-g
 LIBFLAGS=-lisal
 LDFLAGS=-Wl,-rpath=../bin
 
@@ -15,10 +16,16 @@ ErasureCode.h:  ErasureCode.class
 	javah -jni ErasureCode
 
 liberasure.so:  ErasureCode.h
-	gcc -fPIC $(IFLAGS) $(LFLAGS)  -c ErasureCode.c -o ErasureCode.o $(LIBFLAGS) $(LDFLAGS)
-	gcc -shared -fPIC  $(IFLAGS)  $(LFLAGS) -o liberasure.so ErasureCode.o  $(LIBFLAGS) $(LDFLAGS)
+	gcc -fPIC $(CFLAGS) $(IFLAGS) $(LFLAGS)  -c ErasureCode.c -o ErasureCode.o $(LIBFLAGS) $(LDFLAGS)
+	gcc -shared $(CFLAGS) -fPIC  $(IFLAGS)  $(LFLAGS) -o liberasure.so ErasureCode.o  $(LIBFLAGS) $(LDFLAGS)
 
 test:
 	java  -Djava.library.path=. ErasureCode
+prof:
+	valgrind  --leak-check=full  java -Djava.compiler=NONE -Djava.library.path=. ErasureCode
+#         --track-origins=yes 
+#         --show-leak-kinds=all 
+#--verbose 
+#--log-file=valgrind-out.txt
 clean:
 	rm -rf ErasureCode.class ErasureCode.h liberasure.so

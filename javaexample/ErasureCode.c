@@ -154,7 +154,7 @@ Java_ErasureCode_cmain(JNIEnv *env, jobject obj, jbyteArray indata)
 	// Fill sources with random data
         int size_aug = (int)ceil( (float)size/ (float)k)*k;
         len=  (int) ceil( (float)size/ (float)k);
-	printf("ec_simple_example data size: %d k=%d %d %d tot dat=%d\n", size, k, size/k, (int)ceil( (float)size/ (float)k), size_aug);
+	//printf("ec_simple_example data size: %d k=%d %d %d tot dat=%d\n", size, k, size/k, (int)ceil( (float)size/ (float)k), size_aug);
 
         allocate_buffer();
 
@@ -216,22 +216,18 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_encode_1data
 	int i, j, m, c, e, ret;
 	int nerrs = p;
 
-	for (i = 0; i < nerrs; i++) {
-            frag_err_list[i] = rand() % (k + p);
-            printf("fail block %d\n", frag_err_list[i]);
-       }
-
 	m = k + p;
 	// Fill sources with random data
         int size_aug = (int)ceil( (float)size/ (float)k)*k;
         len=  (int) ceil( (float)size/ (float)k);
-	printf("ec_simple_example data size: %d k=%d %d %d tot dat=%d\n", size, k, size/k, (int)ceil( (float)size/ (float)k), size_aug);
+	//printf("ec_simple_example data size: %d k=%d %d %d tot dat=%d\n", size, k, size/k, (int)ceil( (float)size/ (float)k), size_aug);
 
         allocate_buffer();
 
         fill_data_and_pad(buffer, (int) size) ;
+        (*env)->ReleaseByteArrayElements(env, obj, buffer, JNI_ABORT);
 
-	printf(" encode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
+	//printf(" encode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
 
 	// Generate EC parity blocks from sources
 	ec_init_tables(k, p, &encode_matrix[k * k], g_tbls);
@@ -248,6 +244,7 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_encode_1data
             (*env)->ReleasePrimitiveArrayCritical(env, data_part, a, JNI_ABORT);
 
            (*env)->SetObjectArrayElement(env, data_parts, i, data_part);
+           (*env)->DeleteLocalRef(env, data_part);
         }
 
         deallocate_buffer();
@@ -277,7 +274,7 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
 
 	for (i = 0; i < nerrs; i++) {
             frag_err_list[i] = (unsigned char) __erased_indices[i];
-            printf("\t\tdecode fail block %d\n", frag_err_list[i]);
+         //   printf("\t\tdecode fail block %d\n", frag_err_list[i]);
         }
 
 	m = k + p;
@@ -293,25 +290,22 @@ JNIEXPORT jobjectArray JNICALL Java_ErasureCode_decode_1data
 	// Pack recovery array pointers as list of valid fragments
 	for (i = 0; i < k; i++) {
 	    recover_srcs[i] = frag_ptrs[decode_index[i]];
-            printf("Decode index %d -> %d\n", i, decode_index[i]);
+            //printf("Decode index %d -> %d\n", i, decode_index[i]);
         }
 
 	// Recover data
 	ec_init_tables(k, nerrs, decode_matrix, g_tbls);
-        printf("hello 1  len=%d, k=%d nerrs=%d\n", len, k, nerrs);
+        //printf("hello 1  len=%d, k=%d nerrs=%d\n", len, k, nerrs);
 
 	ec_encode_data(len, k, nerrs, g_tbls, recover_srcs, recover_outp);
 
         for (i = 0; i < nerrs; i++) {
 	    frag_ptrs[frag_err_list[i]] = recover_outp[i];
-            printf("Recover index %d -> %d\n", i, frag_err_list[i]);
+         //   printf("Recover index %d -> %d\n", i, frag_err_list[i]);
         }
 
-
-
-
 	// Pack recovery array pointers as list of valid fragments
-	printf(" decode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
+	//printf(" decode (m,k,p)=(%d,%d,%d) len=%d\n", m, k, p, len);
 
         jbyteArray data_part = (*env)->NewByteArray(env, len);
         // to have an easy way to get its class when building the outer array
